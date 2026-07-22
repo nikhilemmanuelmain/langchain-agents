@@ -1,0 +1,10 @@
+[project]
+name = "langchain-agents"
+version = "0.1.0"
+description = "LangChain agent experiments"
+readme = "readme.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+package = false
