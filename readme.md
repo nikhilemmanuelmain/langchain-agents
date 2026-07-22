@@ -3,9 +3,10 @@
 This project uses [uv](https://docs.astral.sh/uv/) for Python versions,
 dependencies, locking, and command execution.
 
-Module 1 provides the FastAPI backend foundation. The chat route currently
-returns a fixed connectivity response; document loading, retrieval, embeddings,
-vector storage, and model calls are intentionally not implemented yet.
+Modules 1 and 2 provide the FastAPI backend foundation and standalone document
+loading for PDF, Markdown, and plain-text files. The chat route still returns a
+fixed connectivity response; chunking, retrieval, embeddings, vector storage,
+and model calls are intentionally not implemented yet.
 
 ## Setup
 
@@ -58,6 +59,32 @@ Expected response:
   "sources": []
 }
 ```
+
+## Load and inspect documents
+
+Place development documents in `data/documents/`, then inspect one or more
+supported files without starting FastAPI:
+
+```bash
+uv run python -m app.ingestion.inspect_documents \
+  data/documents/guide.pdf \
+  data/documents/notes.md
+```
+
+Supported extensions are `.pdf`, `.md`, `.markdown`, and `.txt`. Markdown and
+text files produce one LangChain `Document`; PDFs produce one `Document` per
+page with one-based page metadata. The inspection command prints each
+document's metadata, extracted content length, and a short content preview.
+
+Use a different preview size when needed:
+
+```bash
+uv run python -m app.ingestion.inspect_documents \
+  --preview-length 500 data/documents/notes.txt
+```
+
+Document loading is independent from the API. Module 2 does not index files or
+send their content to an embedding or chat model.
 
 ## Development checks
 
