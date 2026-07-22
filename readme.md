@@ -3,10 +3,11 @@
 This project uses [uv](https://docs.astral.sh/uv/) for Python versions,
 dependencies, locking, and command execution.
 
-Modules 1 and 2 provide the FastAPI backend foundation and standalone document
-loading for PDF, Markdown, and plain-text files. The chat route still returns a
-fixed connectivity response; chunking, retrieval, embeddings, vector storage,
-and model calls are intentionally not implemented yet.
+Modules 1 through 3 provide the FastAPI backend foundation, standalone document
+loading for PDF, Markdown, and plain-text files, and traceable document
+chunking. The chat route still returns a fixed connectivity response; retrieval,
+embeddings, vector storage, and model calls are intentionally not implemented
+yet.
 
 ## Setup
 
@@ -85,6 +86,37 @@ uv run python -m app.ingestion.inspect_documents \
 
 Document loading is independent from the API. Module 2 does not index files or
 send their content to an embedding or chat model.
+
+## Split and inspect document chunks
+
+Load and split one or more documents with the configured defaults:
+
+```bash
+uv run python -m app.ingestion.inspect_chunks \
+  data/documents/guide.pdf \
+  data/documents/notes.md
+```
+
+The defaults are configured in `.env`:
+
+```dotenv
+CHUNK_SIZE=800
+CHUNK_OVERLAP=120
+```
+
+You can override them for one inspection run:
+
+```bash
+uv run python -m app.ingestion.inspect_chunks \
+  --chunk-size 500 \
+  --chunk-overlap 75 \
+  --preview-length 200 \
+  data/documents/notes.txt
+```
+
+Each non-empty chunk preserves its source document metadata and adds a
+zero-based `chunk_index` plus a stable `chunk_id`. Chunking remains independent
+from FastAPI and does not create embeddings or write to a vector database.
 
 ## Development checks
 
