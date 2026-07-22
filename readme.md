@@ -18,6 +18,17 @@ uv run python
 uv run python path/to/script.py
 ```
 
+Run the first weather agent after setting your OpenAI API key:
+
+```bash
+export OPENAI_API_KEY="your-api-key"
+uv run python agents/weather_agent.py
+```
+
+The example weather tool intentionally returns mock weather, matching the
+LangChain quickstart. Replace `get_weather` with a real weather API when you
+are ready to fetch live conditions.
+
 Add or remove dependencies with `uv` so that both `pyproject.toml` and
 `uv.lock` stay synchronized:
 
