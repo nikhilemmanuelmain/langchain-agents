@@ -6,10 +6,20 @@ from pydantic import BaseModel, Field, field_validator
 class ChatRequest(BaseModel):
     """A question submitted to the chat API."""
 
-    question: str = Field(description="The documentation question to answer.")
+    question: str = Field(
+        max_length=2000,
+        description="The documentation question to answer (maximum 2000 characters).",
+    )
     document_ids: list[str] | None = Field(
         default=None,
         description="Optional document IDs to restrict retrieval.",
+    )
+    conversation_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9_-]+$",
+        description="Existing conversation ID; omit to start a conversation.",
     )
 
     @field_validator("question")
@@ -34,6 +44,12 @@ class ChatRequest(BaseModel):
             raise ValueError("Document IDs must not contain empty values.")
         return list(dict.fromkeys(normalized))
 
+    @field_validator("conversation_id")
+    @classmethod
+    def normalize_conversation_id(cls, value: str | None) -> str | None:
+        """Normalize an optional conversation identifier."""
+        return value.strip() if value is not None else None
+
 
 class SourceReference(BaseModel):
     """A retrieved chunk that directly supports the generated answer."""
@@ -50,3 +66,4 @@ class ChatResponse(BaseModel):
 
     answer: str
     sources: list[SourceReference]
+    conversation_id: str | None = None

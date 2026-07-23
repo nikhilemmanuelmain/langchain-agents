@@ -4,8 +4,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.dependencies import get_rag_service
-from app.generation.rag_service import RagService, RagServiceUnavailableError
+from app.conversations.service import ConversationService
+from app.dependencies import get_conversation_service
+from app.generation.rag_service import RagServiceUnavailableError
 from app.schemas.chat import ChatRequest, ChatResponse
 
 router = APIRouter(prefix="/api", tags=["chat"])
@@ -14,11 +15,17 @@ router = APIRouter(prefix="/api", tags=["chat"])
 @router.post("/chat", response_model=ChatResponse)
 def chat(
     request: ChatRequest,
-    rag_service: Annotated[RagService, Depends(get_rag_service)],
+    conversation_service: Annotated[
+        ConversationService, Depends(get_conversation_service)
+    ],
 ) -> ChatResponse:
     """Answer a question using only indexed documentation."""
     try:
-        return rag_service.answer(request.question, request.document_ids)
+        return conversation_service.answer(
+            request.question,
+            request.conversation_id,
+            request.document_ids,
+        )
     except RagServiceUnavailableError as exc:
         raise HTTPException(
             status_code=503,

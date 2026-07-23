@@ -11,10 +11,12 @@ logger = logging.getLogger(__name__)
 
 
 async def validation_exception_handler(
-    request: Request, exc: RequestValidationError
+    request: Request, exc: Exception
 ) -> JSONResponse:
     """Return validation failures in a consistent JSON envelope."""
     del request
+    if not isinstance(exc, RequestValidationError):
+        raise TypeError("Expected RequestValidationError.")
     return JSONResponse(
         status_code=422,
         content={
@@ -24,9 +26,11 @@ async def validation_exception_handler(
     )
 
 
-async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+async def http_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Return explicitly raised HTTP errors in a consistent JSON envelope."""
     del request
+    if not isinstance(exc, HTTPException):
+        raise TypeError("Expected HTTPException.")
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": "http_error", "detail": exc.detail},

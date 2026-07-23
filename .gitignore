@@ -11,3 +11,7 @@ __pycache__/
 htmlcov/
 data/chroma/*
 !data/chroma/.gitkeep
+data/documents/*
+!data/documents/.gitkeep
+data/document-registry.json
+data/document-registry.json.tmp

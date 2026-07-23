@@ -49,6 +49,21 @@ def load_documents(paths: Iterable[str | Path]) -> list[Document]:
     return documents
 
 
+def create_document_id(filename: str, content: bytes) -> str:
+    """Create the stable identifier used for an uploaded document."""
+    normalized_stem = "-".join(
+        part
+        for part in Path(filename).stem.lower().replace("_", "-").split("-")
+        if part
+    )
+    readable_stem = normalized_stem or "document"
+    digest = sha256()
+    digest.update(Path(filename).name.lower().encode("utf-8"))
+    digest.update(b"\0")
+    digest.update(content)
+    return f"{readable_stem}-{digest.hexdigest()[:16]}"
+
+
 def _validate_path(path: Path) -> Path:
     """Resolve a path and ensure it identifies a supported regular file."""
     resolved_path = path.expanduser().resolve()
@@ -70,20 +85,11 @@ def _validate_path(path: Path) -> Path:
 
 def _create_document_id(path: Path) -> str:
     """Build a readable, deterministic ID from the filename and file content."""
-    normalized_stem = "-".join(
-        part for part in path.stem.lower().replace("_", "-").split("-") if part
-    )
-    readable_stem = normalized_stem or "document"
-    digest = sha256()
-    digest.update(path.name.lower().encode("utf-8"))
-    digest.update(b"\0")
     try:
-        with path.open("rb") as file_handle:
-            for block in iter(lambda: file_handle.read(65536), b""):
-                digest.update(block)
+        content = path.read_bytes()
     except OSError as exc:
         raise DocumentLoadError(f"Could not read document: {path}") from exc
-    return f"{readable_stem}-{digest.hexdigest()[:16]}"
+    return create_document_id(path.name, content)
 
 
 def _display_source(path: Path) -> str:

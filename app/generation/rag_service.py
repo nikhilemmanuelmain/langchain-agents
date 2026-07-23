@@ -70,11 +70,14 @@ class RagService:
         self,
         question: str,
         document_ids: Sequence[str] | None = None,
+        *,
+        retrieval_query: str | None = None,
     ) -> ChatResponse:
         """Return an answer grounded only in retrieved documentation chunks."""
+        search_query = retrieval_query or question
         try:
             documents = self._retriever.search(
-                question,
+                search_query,
                 top_k=self._top_k,
                 document_ids=document_ids,
             )
@@ -178,9 +181,16 @@ def _format_context(documents: Sequence[Document]) -> str:
 def _source_from_document(document: Document) -> SourceReference:
     metadata: dict[str, Any] = document.metadata
     return SourceReference(
-        document_id=metadata.get("document_id"),
-        filename=metadata.get("filename"),
+        document_id=_required_source_metadata(metadata, "document_id"),
+        filename=_required_source_metadata(metadata, "filename"),
         page=metadata.get("page"),
         section=metadata.get("section"),
         chunk_id=_chunk_id(document),
     )
+
+
+def _required_source_metadata(metadata: dict[str, Any], key: str) -> str:
+    value = metadata.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"Retrieved chunks must have a non-empty {key}.")
+    return value

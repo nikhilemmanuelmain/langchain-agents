@@ -5,7 +5,7 @@ from collections.abc import Sequence
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dependencies import get_rag_service
+from app.dependencies import get_conversation_service
 from app.generation.rag_service import FALLBACK_ANSWER, RagServiceUnavailableError
 from app.main import app
 from app.schemas.chat import ChatResponse, SourceReference
@@ -13,7 +13,7 @@ from app.schemas.chat import ChatResponse, SourceReference
 client = TestClient(app)
 
 
-class FakeRagService:
+class FakeConversationService:
     """Predictable route dependency that records request filters."""
 
     def __init__(self) -> None:
@@ -22,8 +22,10 @@ class FakeRagService:
     def answer(
         self,
         question: str,
+        conversation_id: str | None = None,
         document_ids: Sequence[str] | None = None,
     ) -> ChatResponse:
+        resolved_id = conversation_id or "generated-conversation-id"
         self.calls.append((question, document_ids))
         return ChatResponse(
             answer="Use the Account Settings page.",
@@ -34,19 +36,20 @@ class FakeRagService:
                     chunk_id="guide-chunk-0",
                 )
             ],
+            conversation_id=resolved_id,
         )
 
 
 @pytest.fixture(autouse=True)
-def override_rag_service() -> FakeRagService:
-    service = FakeRagService()
-    app.dependency_overrides[get_rag_service] = lambda: service
+def override_rag_service() -> FakeConversationService:
+    service = FakeConversationService()
+    app.dependency_overrides[get_conversation_service] = lambda: service
     yield service
     app.dependency_overrides.clear()
 
 
 def test_chat_returns_grounded_response(
-    override_rag_service: FakeRagService,
+    override_rag_service: FakeConversationService,
 ) -> None:
     response = client.post(
         "/api/chat",
@@ -59,6 +62,7 @@ def test_chat_returns_grounded_response(
     assert response.status_code == 200
     assert response.json() == {
         "answer": "Use the Account Settings page.",
+        "conversation_id": "generated-conversation-id",
         "sources": [
             {
                 "document_id": "guide",
@@ -102,12 +106,13 @@ def test_chat_returns_503_when_rag_service_fails() -> None:
         def answer(
             self,
             question: str,
+            conversation_id: str | None = None,
             document_ids: Sequence[str] | None = None,
         ) -> ChatResponse:
-            del question, document_ids
+            del question, conversation_id, document_ids
             raise RagServiceUnavailableError("provider failed")
 
-    app.dependency_overrides[get_rag_service] = UnavailableService
+    app.dependency_overrides[get_conversation_service] = UnavailableService
 
     response = client.post("/api/chat", json={"question": "Question"})
 

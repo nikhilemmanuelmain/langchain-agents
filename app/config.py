@@ -2,7 +2,7 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import Field, SecretStr, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     chroma_persist_directory: Path = Path("data/chroma")
     chroma_collection_name: str = "documentation"
     retrieval_top_k: int = Field(default=4, gt=0)
+    documents_directory: Path = Path("data/documents")
+    document_registry_path: Path = Path("data/document-registry.json")
+    max_document_size_bytes: int = Field(default=10 * 1024 * 1024, gt=0)
+    max_conversation_turns: int = Field(default=6, gt=0)
+    max_conversations: int = Field(default=1000, gt=0)
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -31,7 +37,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def cors_origins(self) -> list[str]:
         """Return normalized origins from the comma-separated environment value."""

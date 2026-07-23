@@ -3,9 +3,10 @@
 This project uses [uv](https://docs.astral.sh/uv/) for Python versions,
 dependencies, locking, and command execution.
 
-Modules 1 through 5 provide a grounded documentation chatbot: FastAPI, document
-loading, traceable chunking, OpenAI embeddings, persistent Chroma retrieval,
-and concise answers supported by retrieved source chunks.
+Modules 1 through 8 provide a grounded documentation chatbot: FastAPI, managed
+document ingestion, traceable chunking, OpenAI embeddings, persistent Chroma
+retrieval, cited answers, bounded conversational follow-ups, and an evaluation
+and operational-readiness foundation.
 
 ## Setup
 
@@ -60,6 +61,7 @@ Expected response:
 ```json
 {
   "answer": "You can reset your password from the Account Settings page.",
+  "conversation_id": "02c93c9c-02a7-4c21-a1d7-e593b065a960",
   "sources": [
     {
       "document_id": "guide-e7f436dc4541740f",
@@ -77,9 +79,42 @@ If the indexed documentation does not support an answer, the API returns:
 ```json
 {
   "answer": "I could not find this information in the available documentation.",
-  "sources": []
+  "sources": [],
+  "conversation_id": "02c93c9c-02a7-4c21-a1d7-e593b065a960"
 }
 ```
+
+Every API response also includes an `X-Request-ID` header for log correlation.
+
+## Manage documents through the API
+
+Upload and synchronously index a supported document:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/documents \
+  -F "file=@data/documents/guide.pdf"
+```
+
+List or inspect managed documents:
+
+```bash
+curl http://127.0.0.1:8000/api/documents
+curl http://127.0.0.1:8000/api/documents/DOCUMENT_ID
+```
+
+Re-index or delete a document:
+
+```bash
+curl -X POST \
+  http://127.0.0.1:8000/api/documents/DOCUMENT_ID/reindex
+
+curl -X DELETE \
+  http://127.0.0.1:8000/api/documents/DOCUMENT_ID
+```
+
+Uploads support PDF, Markdown, and text. Filenames are sanitized, unchanged
+files are deduplicated by checksum, and the default upload limit is 10 MiB.
+Public responses never expose local storage paths.
 
 ## Load and inspect documents
 
@@ -199,9 +234,43 @@ route can retrieve them afterward. The API accepts an optional document filter:
 ```json
 {
   "question": "How can I reset my password?",
-  "document_ids": ["guide-e7f436dc4541740f"]
+  "document_ids": ["guide-e7f436dc4541740f"],
+  "conversation_id": null
 }
 ```
+
+Save the returned `conversation_id` and send it with a follow-up:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question":"Can I do that if I am locked out?",
+    "conversation_id":"02c93c9c-02a7-4c21-a1d7-e593b065a960"
+  }'
+```
+
+Conversation histories are isolated by ID and limited to six turns by default.
+They are stored in memory and disappear when the server restarts. Previous
+assistant responses help resolve follow-up references but are never supplied as
+documentary evidence to the final answer model.
+
+## Run the evaluation dataset
+
+After indexing documents matching the checked-in evaluation fixtures, run:
+
+```bash
+uv run python -m app.evaluation.run_evaluation
+```
+
+The default dataset is `data/evaluation/dataset.json`. The report shows
+retrieval accuracy, expected answer terms, groundedness, citation correctness,
+and unsupported-question refusal as separate metrics.
+
+These deterministic checks are regression tests, not proof of semantic quality.
+See [the production-readiness checklist](docs/production-readiness.md) for
+remaining authentication, tenant isolation, rate limiting, monitoring, storage,
+security-testing, and PostgreSQL/pgvector work.
 
 The normal test suite uses fake model and embedding dependencies. To run the
 paid, real-provider integration test explicitly:
@@ -218,6 +287,7 @@ Format, lint, and test the project:
 ```bash
 uv run ruff format .
 uv run ruff check .
+uv run mypy app
 uv run pytest
 ```
 

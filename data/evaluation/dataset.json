@@ -1,0 +1,23 @@
+[
+  {
+    "case_id": "password-reset",
+    "question": "Where can I reset my password?",
+    "expected_source": "guide.md",
+    "expected_answer_terms": ["Account Settings"],
+    "answerable": true
+  },
+  {
+    "case_id": "annual-leave",
+    "question": "How many annual leave days are provided?",
+    "expected_source": "policy.txt",
+    "expected_answer_terms": ["26"],
+    "answerable": true
+  },
+  {
+    "case_id": "unsupported-travel",
+    "question": "What is the international travel reimbursement rate?",
+    "expected_source": null,
+    "expected_answer_terms": [],
+    "answerable": false
+  }
+]

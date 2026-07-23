@@ -1,11 +1,14 @@
 """OpenAI chat-model and structured-output construction."""
 
+from typing import cast
+
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
 
 from app.config import Settings
-from app.generation.prompts import ANSWER_PROMPT
+from app.conversations.service import StandaloneQuery
+from app.generation.prompts import ANSWER_PROMPT, QUERY_REWRITE_PROMPT
 from app.generation.rag_service import ModelAnswer
 
 
@@ -42,4 +45,22 @@ def create_answer_chain(
         method="json_schema",
         strict=True,
     )
-    return ANSWER_PROMPT | structured_model
+    return cast(
+        Runnable[dict[str, str], ModelAnswer],
+        ANSWER_PROMPT | structured_model,
+    )
+
+
+def create_rewrite_chain(
+    chat_model: BaseChatModel,
+) -> Runnable[dict[str, str], StandaloneQuery]:
+    """Create a strict follow-up-to-standalone query rewrite chain."""
+    structured_model = chat_model.with_structured_output(
+        StandaloneQuery,
+        method="json_schema",
+        strict=True,
+    )
+    return cast(
+        Runnable[dict[str, str], StandaloneQuery],
+        QUERY_REWRITE_PROMPT | structured_model,
+    )

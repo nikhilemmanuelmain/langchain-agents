@@ -15,12 +15,14 @@ dependencies = [
     "onnxruntime<1.24; sys_platform == 'darwin' and platform_machine == 'x86_64'",
     "pydantic-settings>=2.10.0",
     "pypdf>=6.4.0",
+    "python-multipart>=0.0.20",
     "uvicorn[standard]>=0.35.0",
 ]
 
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
+    "mypy>=1.18.0",
     "pytest>=8.4.0",
     "ruff>=0.12.0",
 ]
@@ -41,3 +43,11 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.13"
+check_untyped_defs = true
+ignore_missing_imports = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
