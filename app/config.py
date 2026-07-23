@@ -1,9 +1,10 @@
 """Environment-based application configuration."""
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Self
 
-from pydantic import Field, computed_field, model_validator
+from pydantic import Field, SecretStr, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,6 +16,14 @@ class Settings(BaseSettings):
     cors_allowed_origins: str = "http://localhost:3000,http://localhost:5173"
     chunk_size: int = Field(default=800, gt=0)
     chunk_overlap: int = Field(default=120, ge=0)
+    openai_api_key: SecretStr | None = None
+    openai_embedding_model: str = "text-embedding-3-small"
+    openai_chat_model: str = "gpt-5.6-luna"
+    openai_request_timeout_seconds: float = Field(default=30, gt=0)
+    openai_max_retries: int = Field(default=2, ge=0)
+    chroma_persist_directory: Path = Path("data/chroma")
+    chroma_collection_name: str = "documentation"
+    retrieval_top_k: int = Field(default=4, gt=0)
 
     model_config = SettingsConfigDict(
         env_file=".env",

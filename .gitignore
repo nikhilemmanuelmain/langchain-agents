@@ -2,7 +2,6 @@
 .uv_cache/
 __pycache__/
 *.py[cod]
-.python-version
 .env
 .env.*
 !.env.example
@@ -10,3 +9,5 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
+data/chroma/*
+!data/chroma/.gitkeep

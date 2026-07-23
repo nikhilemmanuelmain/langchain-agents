@@ -3,11 +3,9 @@
 This project uses [uv](https://docs.astral.sh/uv/) for Python versions,
 dependencies, locking, and command execution.
 
-Modules 1 through 3 provide the FastAPI backend foundation, standalone document
-loading for PDF, Markdown, and plain-text files, and traceable document
-chunking. The chat route still returns a fixed connectivity response; retrieval,
-embeddings, vector storage, and model calls are intentionally not implemented
-yet.
+Modules 1 through 5 provide a grounded documentation chatbot: FastAPI, document
+loading, traceable chunking, OpenAI embeddings, persistent Chroma retrieval,
+and concise answers supported by retrieved source chunks.
 
 ## Setup
 
@@ -16,6 +14,11 @@ Install `uv`, clone the repository, and install the locked dependencies:
 ```bash
 uv sync
 ```
+
+The tracked `.python-version` asks `uv` to use Python 3.13. This keeps local
+Chroma compatible with Intel macOS, where newer ONNX Runtime releases no longer
+publish x86-64 wheels. `uv` downloads the managed Python version automatically
+when needed.
 
 Copy the example configuration and adjust the allowed browser origins when
 needed:
@@ -44,7 +47,7 @@ Check health:
 curl http://127.0.0.1:8000/health
 ```
 
-Call the temporary chat endpoint:
+Call the grounded chat endpoint after indexing documentation:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/chat \
@@ -56,7 +59,24 @@ Expected response:
 
 ```json
 {
-  "answer": "The chat API is connected.",
+  "answer": "You can reset your password from the Account Settings page.",
+  "sources": [
+    {
+      "document_id": "guide-e7f436dc4541740f",
+      "filename": "guide.md",
+      "page": null,
+      "section": null,
+      "chunk_id": "guide-e7f436dc4541740f-chunk-0-4a696d5847cc"
+    }
+  ]
+}
+```
+
+If the indexed documentation does not support an answer, the API returns:
+
+```json
+{
+  "answer": "I could not find this information in the available documentation.",
   "sources": []
 }
 ```
@@ -117,6 +137,79 @@ uv run python -m app.ingestion.inspect_chunks \
 Each non-empty chunk preserves its source document metadata and adds a
 zero-based `chunk_index` plus a stable `chunk_id`. Chunking remains independent
 from FastAPI and does not create embeddings or write to a vector database.
+
+## Index and search documents
+
+Module 4 uses OpenAI embeddings and persistent local Chroma storage. Add a real
+API key to your local `.env`; never commit it:
+
+```dotenv
+OPENAI_API_KEY=your-api-key
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_CHAT_MODEL=gpt-5.6-luna
+OPENAI_REQUEST_TIMEOUT_SECONDS=30
+OPENAI_MAX_RETRIES=2
+CHROMA_PERSIST_DIRECTORY=data/chroma
+CHROMA_COLLECTION_NAME=documentation
+RETRIEVAL_TOP_K=4
+```
+
+Load, chunk, index, and search one or more files from the command line:
+
+```bash
+uv run python -m app.retrieval.inspect_search \
+  "How can I reset my password?" \
+  data/documents/guide.pdf \
+  data/documents/notes.md
+```
+
+The command prints the matching chunks and their traceability metadata. Chroma
+stores its local database under `data/chroma/`, which is ignored by Git.
+
+To limit retrieval to known document IDs, repeat `--document-id`:
+
+```bash
+uv run python -m app.retrieval.inspect_search \
+  "How can I reset my password?" \
+  --document-id guide-e7f436dc4541740f \
+  data/documents/guide.md
+```
+
+Re-indexing a `document_id` replaces all of its existing chunks, preventing
+duplicate and stale chunks.
+
+## Generate a grounded answer
+
+Run the complete load, chunk, index, retrieve, and answer pipeline manually:
+
+```bash
+uv run python -m app.generation.inspect_answer \
+  "How can I reset my password?" \
+  data/documents/guide.md
+```
+
+The model receives only the retrieved chunks. Its structured response names the
+supporting chunk IDs, and the application rejects citations that were not part
+of the retrieved context. Unsupported questions return the fixed refusal text
+with no sources.
+
+The manual command also persists the indexed chunks, so the FastAPI `/api/chat`
+route can retrieve them afterward. The API accepts an optional document filter:
+
+```json
+{
+  "question": "How can I reset my password?",
+  "document_ids": ["guide-e7f436dc4541740f"]
+}
+```
+
+The normal test suite uses fake model and embedding dependencies. To run the
+paid, real-provider integration test explicitly:
+
+```bash
+RUN_OPENAI_INTEGRATION=1 uv run pytest \
+  tests/integration/test_rag_e2e.py -m integration
+```
 
 ## Development checks
 
